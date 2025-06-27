@@ -15,7 +15,9 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'index' %}">Smart Travel</a>
+            <a class="navbar-brand" href="{% url 'index' %}" style="height: 3rem;overflow: hidden;display: flex;align-items: center;">
+                <img src="{% static 'img/logo.png' %}" style="width: 4rem;height: 4rem;" /> N'Travliw
+            </a>
             {% comment %} <a class="navbar-brand" href="{% url 'index' %}">Smart Travel</a> {% endcomment %}
             <div class="collapse navbar-collapse">
                 <ul class="navbar-nav me-auto">
