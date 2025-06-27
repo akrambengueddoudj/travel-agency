@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">My Profile</h4>
+            </div>
+            <div class="card-body">
+                <form id="profileForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" disabled>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" disabled>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Phone</label>
+                        <input type="text" class="form-control" id="phone">
+                    </div>
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Address</label>
+                        <textarea class="form-control" id="address" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Update Profile</button>
+                </form>
+                <div id="profileMessage" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(async function() {
+    // First verify authentication
+    const auth = await Auth.requireAuth();
+
+    // Load user data
+    //try {
+        // Fetch user details from API
+        $.ajax({
+            url: '/api/users/me/',
+            headers: {
+                'Authorization': 'Bearer ' + auth.accessToken
+            },
+            success: function(data) {
+                    $('#username').val(data.username || '');
+                    $('#email').val(data.email || '');
+            },
+            error: function(xhr, status, error) {
+                    console.error(xhr, status, error);
+            }
+        });
+
+        // Fetch profile details
+        $.ajax({
+            url: '/api/create_profile/',
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + auth.accessToken
+            },
+            success: function(data) {
+                $('#phone').val(data.phone || '');
+                $('#address').val(data.address || '');
+                $('#profileForm').submit(async function(e) {
+                    e.preventDefault();
+                    
+                    try {
+                        const response = await $.ajax({
+                            url: '/api/create_profile/',
+                            type: 'PUT',
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('access_token'),
+                                'Content-Type': 'application/json'
+                            },
+                            data: JSON.stringify({
+                                email: $('#email').val(),
+                                phone: $('#phone').val(),
+                                address: $('#address').val()
+                            })
+                        });
+            
+                        $('#profileMessage').html(`
+                            <div class="alert alert-success">
+                                Profile updated successfully
+                            </div>
+                        `);
+                    } catch (error) {
+                        console.error('Error updating profile:', error);
+                        let errorMessage = 'Error updating profile';
+                        if (error.responseJSON) {
+                            errorMessage += ': ' + Object.values(error.responseJSON).join(' ');
+                        }
+                        $('#profileMessage').html(`
+                            <div class="alert alert-danger">
+                                ${errorMessage}
+                            </div>
+                        `);
+                    }
+                });
+            },
+            error: function(xhr, status, error) {
+                console.error(xhr, status, error);
+                $('#profileForm').submit(async function(e) {
+                    e.preventDefault();
+                    
+                    try {
+                        const response = await $.ajax({
+                            url: '/api/create_profile/',
+                            type: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('access_token'),
+                                'Content-Type': 'application/json'
+                            },
+                            data: JSON.stringify({
+                                email: $('#email').val(),
+                                phone: $('#phone').val(),
+                                address: $('#address').val()
+                            })
+                        });
+            
+                        $('#profileMessage').html(`
+                            <div class="alert alert-success">
+                                Profile updated successfully
+                            </div>
+                        `);
+                    } catch (error) {
+                        console.error('Error updating profile:', error);
+                        let errorMessage = 'Error updating profile';
+                        if (error.responseJSON) {
+                            errorMessage += ': ' + Object.values(error.responseJSON).join(' ');
+                        }
+                        $('#profileMessage').html(`
+                            <div class="alert alert-danger">
+                                ${errorMessage}
+                            </div>
+                        `);
+                    }
+                });
+            }
+        });
+
+    try{
+    } catch (error) {
+        console.error('Error loading profile:', error);
+        $('#profileMessage').html(`
+            <div class="alert alert-danger">
+                Error loading profile data
+            </div>
+        `);
+    }
+
+    // Update profile handler
+    $('#profileForm').submit(async function(e) {
+        e.preventDefault();
+        
+        try {
+            const response = await $.ajax({
+                url: '/api/create_profile/',
+                type: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('access_token'),
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify({
+                    email: $('#email').val(),
+                    phone: $('#phone').val(),
+                    address: $('#address').val()
+                })
+            });
+
+            $('#profileMessage').html(`
+                <div class="alert alert-success">
+                    Profile updated successfully
+                </div>
+            `);
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            let errorMessage = 'Error updating profile';
+            if (error.responseJSON) {
+                errorMessage += ': ' + Object.values(error.responseJSON).join(' ');
+            }
+            $('#profileMessage').html(`
+                <div class="alert alert-danger">
+                    ${errorMessage}
+                </div>
+            `);
+        }
+    });
+});
+</script>
+{% endblock %}

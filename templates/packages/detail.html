@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <img src="https://placehold.co/800x400?text=Travel+Package" class="card-img-top" alt="{{ package.title }}">
+            <div class="card-body">
+                <h1 class="card-title" id="packageTitle">{{ package.title }}</h1>
+                <p class="card-text">{{ package.description }}</p>
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <p><strong>Start Date:</strong> <span id="startDate">{{ package.start_date }}</span></p>
+                        <p><strong>End Date:</strong> <span id="endDate">{{ package.end_date }}</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Price:</strong><span id="packagePrice">{{ package.price }} DA</span></p>
+                        <p><strong>Available Seats:</strong> <span id="availableSeats">{{ package.available_seats }}</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Book This Package</h5>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'create-reservation' package.id %}" class="btn btn-primary w-100 mb-3">Reserve Now</a>
+                {% comment %} <a href="{% url 'create-reservation' package.id %}" class="btn btn-primary w-100 mb-3">Reserve Now</a> {% endcomment %}
+                <button class="btn btn-outline-secondary w-100" id="getQuoteBtn">Get Instant Quote</button>
+                
+                <div class="mt-4" id="quoteResult" style="display: none;">
+                    <h6>Quote Summary</h6>
+                    <p>For <span id="quotePeople">2</span> people:</p>
+                    <p class="fw-bold">Total: <span id="quoteTotal">0.00 DA</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+    const auth = Auth.requireAuth();
+    
+    //if (auth.isAuthenticated) {
+        // Load package details via API
+        $.get(`/api/packages/{{ package.id }}/`, function(pkg) {
+            console.log(pkg);
+            $('#packageTitle').text(pkg.title);
+            $('#packagePrice').text(pkg.price);
+            $('#startDate').text(pkg.start_date);
+            $('#endDate').text(pkg.end_date);
+            $('#availableSeats').text(pkg.available_seats);
+        });
+
+        // Instant quote functionality
+        $('#getQuoteBtn').on('click', function(e) {
+            const people = prompt("How many people?", "2");
+            if (people && !isNaN(people)) {
+                $.ajaxSetup({
+                    headers: {
+                        'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+                    }
+                });
+                $.post('/api/quotation/', {
+                    travel_package: {{ package.id }},
+                    number_of_people: parseInt(people)
+                }, function(response) {
+                    $('#quotePeople').text(people);
+                    $('#quoteTotal').text((parseFloat($('#packagePrice').text()) * parseInt(people)));
+                    $('#quoteResult').show();
+                });
+            }
+        });
+    //}
+    });
+</script>
+{% endblock %}

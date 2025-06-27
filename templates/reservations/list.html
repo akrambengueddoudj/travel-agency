@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h1 class="mb-4">My Reservations</h1>
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Package</th>
+                <th>Dates</th>
+                <th>People</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="reservationsTable">
+            <!-- Reservations will be loaded via AJAX -->
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex justify-content-center mt-4">
+    <nav aria-label="Page navigation">
+        <ul class="pagination" id="pagination">
+            <!-- Pagination will be loaded via AJAX -->
+        </ul>
+    </nav>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/reservations.js' %}"></script>
+<script>
+    $(document).ready(function() {
+        const auth = Auth.requireAuth();
+        loadReservations();
+    });
+    
+    function loadReservations(page = 1) {
+        $.ajax({
+            url: '/api/reservations/',
+            type: 'GET',
+            data: { page: page },
+            beforeSend: function(xhr) {
+                xhr.setRequestHeader(
+                    "Authorization", 
+                    "Bearer " + localStorage.getItem('access_token')
+                );
+            },
+            success: function(response) {
+                renderReservations(response.results);
+                renderPagination(response);
+            },
+            error: function(xhr) {
+                alert('Error loading reservations: ' + xhr.responseText);
+            }
+        });
+    }
+    
+    function renderReservations(reservations) {
+        const table = $('#reservationsTable');
+        table.empty();
+        
+        if (reservations.length === 0) {
+            table.html('<tr><td colspan="6" class="text-center">No reservations found.</td></tr>');
+            return;
+        }
+        reservations.forEach(res => {
+
+        console.log(res)
+            const row = `
+            <tr>
+                <td>${res.travel_package.title || 'Package #' + res.travel_package}</td>
+                <td>${res.travel_package.start_date} to ${res.travel_package.end_date}</td>
+                <td>${res.number_of_people}</td>
+                <td>${(res.total_price || 0).toFixed(2)} DA</td>
+                <td><span class="badge bg-${res.status === 'confirmed' ? 'success' : 'warning'}">${res.status || 'pending'}</span></td>
+                <td>
+                    <a href="/app/reservations/${res.id}/" class="btn btn-sm btn-info">View</a>
+                    <button class="btn btn-sm btn-danger" onclick="cancelReservation(${res.id})">Cancel</button>
+                </td>
+            </tr>`;
+            table.append(row);
+        });
+    }
+    
+    function renderPagination(data) {
+        const pagination = $('#pagination');
+        pagination.empty();
+        
+        if (data.previous) {
+            pagination.append(`<li class="page-item"><a class="page-link" href="#" onclick="loadReservations(${data.current_page - 1})">Previous</a></li>`);
+        }
+        
+        for (let i = 1; i <= data.total_pages; i++) {
+            const active = i === data.current_page ? 'active' : '';
+            pagination.append(`<li class="page-item ${active}"><a class="page-link" href="#" onclick="loadReservations(${i})">${i}</a></li>`);
+        }
+        
+        if (data.next) {
+            pagination.append(`<li class="page-item"><a class="page-link" href="#" onclick="loadReservations(${data.current_page + 1})">Next</a></li>`);
+        }
+    }
+    
+    function cancelReservation(reservationId) {
+        if (confirm('Are you sure you want to cancel this reservation?')) {
+            $.ajax({
+                url: `/api/reservations/${reservationId}/`,
+                type: 'DELETE',
+                success: function() {
+                    loadReservations();
+                },
+                error: function(xhr) {
+                    alert('Error canceling reservation: ' + xhr.responseText);
+                }
+            });
+        }
+    }
+</script>
+{% endblock %}

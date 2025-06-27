@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Create New Reservation</h3>
+                </div>
+                
+                <div class="card-body">
+                    <form id="reservationForm">
+                        <input type="hidden" id="packageId" value="{{ package_id }}">
+                        
+                        <!-- Customer Information -->
+                        <div class="mb-4">
+                            <h5 class="mb-3 border-bottom pb-2">Customer Information</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="customerName" class="form-label">Full Name *</label>
+                                    <input type="text" class="form-control" id="customerName" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="customerEmail" class="form-label">Email *</label>
+                                    <input type="email" class="form-control" id="customerEmail" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="customerPhone" class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="customerPhone">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Trip Details -->
+                        <div class="mb-4">
+                            <h5 class="mb-3 border-bottom pb-2">Trip Details</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="numberOfPeople" class="form-label">Number of Travelers *</label>
+                                    <input type="number" class="form-control" id="numberOfPeople" min="1" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="travelDate" class="form-label">Preferred Travel Date</label>
+                                    <input type="date" class="form-control" id="travelDate">
+                                </div>
+                                <div class="col-12">
+                                    <label for="specialRequests" class="form-label">Special Requests</label>
+                                    <textarea class="form-control" id="specialRequests" rows="3"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Package Summary -->
+                        <div class="mb-4">
+                            <h5 class="mb-3 border-bottom pb-2">Package Summary</h5>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between">
+                                        <h6 id="packageTitle">Loading package details...</h6>
+                                        <h6 class="text-primary" id="packagePrice">0.00 DA</h6>
+                                    </div>
+                                    <p class="text-muted mb-2" id="packageDates"></p>
+                                    <p class="mb-0" id="packageDescription"></p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Pricing Summary -->
+                        <div class="mb-4">
+                            <h5 class="mb-3 border-bottom pb-2">Pricing Summary</h5>
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <tbody>
+                                        <tr>
+                                            <td>Package Price x <span id="travelersCount">0</span></td>
+                                            <td class="text-end" id="subtotal">0.00 DA</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Taxes & Fees</td>
+                                            <td class="text-end" id="taxes">0.00 DA</td>
+                                        </tr>
+                                        <tr class="fw-bold">
+                                            <td>Total Amount</td>
+                                            <td class="text-end text-primary" id="totalAmount">0.00 DA</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Form Actions -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'package-list' %}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <span id="submitText">Create Reservation</span>
+                                <span id="submitSpinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Reservation Created!</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Your reservation has been successfully created.</p>
+                <p>Confirmation has been sent to <strong id="confirmationEmail"></strong>.</p>
+            </div>
+            <div class="modal-footer">
+                <a href="{% url 'reservation-list' %}" class="btn btn-success">View My Reservations</a>
+                <a href="{% url 'package-list' %}" class="btn btn-outline-secondary">Browse More Packages</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(async function() {
+    // First verify authentication
+    const auth = await Auth.requireAuth();
+    if (!auth.isAuthenticated) return;
+    
+    const packageId = $('#packageId').val();
+    let packageDetails = {};
+    let pricing = {
+        basePrice: 0,
+        taxes: 0,
+        total: 0
+    };
+    
+    // Load package details
+    try {
+        const response = await $.ajax({
+            url: `/api/packages/${packageId}/`,
+            headers: {
+                'Authorization': 'Bearer ' + auth.accessToken
+            }
+        });
+        
+        packageDetails = response;
+        pricing.basePrice = parseFloat(response.price);
+        pricing.taxes = pricing.basePrice * 0.1; // 10% tax example
+        pricing.total = pricing.basePrice + pricing.taxes;
+        
+        // Update UI with package info
+        $('#packageTitle').text(response.title);
+        $('#packagePrice').text('$' + response.price);
+        $('#packageDates').text(`${response.start_date} to ${response.end_date}`);
+        $('#packageDescription').text(response.description);
+        
+        // Initialize pricing calculator
+        updatePricing();
+    } catch (error) {
+        console.error('Error loading package:', error);
+        alert('Error loading package details');
+        window.location.href = "{% url 'package-list' %}";
+    }
+    
+    // Pricing calculator
+    function updatePricing() {
+        const travelers = parseInt($('#numberOfPeople').val()) || 0;
+        $('#travelersCount').text(travelers);
+        
+        const subtotal = pricing.basePrice * travelers;
+        const taxes = subtotal * 0.1; // 10% tax
+        const total = subtotal + taxes;
+        
+        $('#subtotal').text(subtotal.toFixed(2) + ' DA');
+        $('#taxes').text(taxes.toFixed(2) + ' DA');
+        $('#totalAmount').text(total.toFixed(2) + ' DA');
+    }
+    
+    // Event listeners
+    $('#numberOfPeople').on('change', updatePricing);
+    
+    // Form submission
+    $('#reservationForm').submit(async function(e) {
+        e.preventDefault();
+        
+        const submitBtn = $('#submitBtn');
+        submitBtn.prop('disabled', true);
+        $('#submitText').hide();
+        $('#submitSpinner').removeClass('d-none');
+        
+        const reservationData = {
+            travel_package: packageId,
+            travel_package_id: packageId,
+            customer_name: $('#customerName').val(),
+            customer_email: $('#customerEmail').val(),
+            customer_phone: $('#customerPhone').val(),
+            number_of_people: $('#numberOfPeople').val(),
+            special_requests: $('#specialRequests').val(),
+            preferred_date: $('#travelDate').val()
+        };
+        
+        try {
+            const response = await $.ajax({
+                url: '/api/reservations/',
+                type: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + auth.accessToken,
+                    'Content-Type': 'application/json'
+                },
+                data: JSON.stringify(reservationData)
+            });
+            
+            // Show success modal
+            $('#confirmationEmail').text(reservationData.customer_email);
+            const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+            successModal.show();
+            
+        } catch (error) {
+            console.error('Error creating reservation:', error);
+            let errorMessage = 'Error creating reservation';
+            if (error.responseJSON) {
+                errorMessage += ': ' + Object.values(error.responseJSON).join(' ');
+            }
+            alert(errorMessage);
+        } finally {
+            submitBtn.prop('disabled', false);
+            $('#submitText').show();
+            $('#submitSpinner').addClass('d-none');
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,8 +1,9 @@
 from rest_framework import viewsets, permissions, serializers, generics, filters, status
 from .models import TravelPackage, Reservation
-from .serializers import TravelPackageSerializer, ReservationSerializer, EmailTokenObtainPairSerializer, RegisterSerializer, UserProfileSerializer, UserWithProfileSerializer
+from .serializers import TravelPackageSerializer, ReservationSerializer, EmailTokenObtainPairSerializer, RegisterSerializer, UserProfileSerializer, UserWithProfileSerializer, UserSerializer
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.models import User, Group
@@ -12,6 +13,7 @@ from .guiddini_service import initiate_payment, show_transaction
 import requests
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from django.utils import timezone
 
 # =========================
 # Travel Package ViewSet
@@ -39,6 +41,8 @@ class ReservationViewSet(viewsets.ModelViewSet):
         package_id = request.data.get('travel_package')
         number_of_people = int(request.data.get('number_of_people'))
         if not TravelPackage.objects.filter(id=package_id).exists():
+            print(package_id)
+            print(number_of_people)
             return Response({'error': 'Travel package not found'}, status=404)
         package = TravelPackage.objects.get(id=package_id)
 
@@ -134,6 +138,24 @@ class CreateUserProfileView(generics.CreateAPIView):
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_object(self):
+        # Return the profile of the currently logged-in user
+        user = self.request.user
+        if hasattr(user, 'profile'):
+            return user.profile
+        return None
+
+
+    def get(self, request, *args, **kwargs):
+        profile = self.get_object()
+        if profile is None:
+            return Response(
+                {'detail': 'Profile not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = self.get_serializer(profile)
+        return Response(serializer.data)
+    
     def post(self, request, *args, **kwargs):
         email = request.data.get('email')
         try:
@@ -148,6 +170,18 @@ class CreateUserProfileView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save(user=user)
         return Response({'message': 'Profile created successfully.'}, status=status.HTTP_201_CREATED)
+    
+    def put(self, request, *args, **kwargs):
+        profile = self.get_object()
+        if profile is None:
+            return Response(
+                {'detail': 'Profile not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = self.get_serializer(profile, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 # Admin-only: Assign role to user by email
 class AssignRoleView(generics.GenericAPIView):
@@ -227,3 +261,47 @@ class ShowTransactionView(APIView):
             return Response(attrs, status=status.HTTP_200_OK)
         except requests.HTTPError as e:
             return Response({'error': str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+
+# users me
+@api_view(['GET'])
+def current_user(request):
+    return Response({
+        'username': request.user.username,
+        'email': request.user.email,
+        'is_staff': request.user.is_staff
+    })
+
+class UserListView(generics.ListAPIView):
+    """
+    View to list all users (Admin only)
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAdminUser]  # Only admin can access
+    pagination_class = None
+
+@api_view(['GET'])
+def reservation_stats(request):
+    now = timezone.now()
+    
+    # Total packages count
+    total_packages = TravelPackage.objects.count()
+    
+    # Active reservations - trips that haven't ended yet
+    active_reservations = Reservation.objects.filter(
+        travel_package__end_date__gte=now  # End date is in future
+    ).count()
+    
+    # Total revenue - sum of all reservation totals
+    # Calculate based on package price * number of people
+    total_revenue = sum(
+        reservation.travel_package.price * reservation.number_of_people
+        for reservation in Reservation.objects.all()
+    )
+    
+    return Response({
+        'total_packages': total_packages,
+        'active_reservations': active_reservations,
+        'total_revenue': float(total_revenue)
+    })

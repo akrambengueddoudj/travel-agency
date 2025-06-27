@@ -10,6 +10,21 @@ class TravelPackageSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ReservationSerializer(serializers.ModelSerializer):
+    travel_package = TravelPackageSerializer(read_only=True)
+
+    # For writing - accept just package ID
+    travel_package_id = serializers.PrimaryKeyRelatedField(
+        queryset=TravelPackage.objects.all(),
+        source='travel_package',
+        write_only=True
+    )
+
+    # add total price field (calculate it based on number of people and package price) ony when reading
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['total_price'] = instance.travel_package.price * instance.number_of_people
+        return data
+    
     class Meta:
         model = Reservation
         fields = '__all__'
@@ -77,3 +92,8 @@ class UserWithProfileSerializer(serializers.ModelSerializer):
         )
         UserProfile.objects.create(user=user, **profile_data)
         return user
+    
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'is_staff', 'is_active', 'date_joined']

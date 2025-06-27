@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Assign User Role</h4>
+            </div>
+            <div class="card-body">
+                <form id="assignRoleForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="userEmail" class="form-label">User Email</label>
+                        <input type="email" class="form-control" id="userEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="userRole" class="form-label">Role</label>
+                        <select class="form-select" id="userRole" required>
+                            <option value="">Select Role</option>
+                            <option value="Admin">Admin</option>
+                            <option value="Manager">Manager</option>
+                            <option value="Seller">Seller</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Assign Role</button>
+                </form>
+                <div id="assignRoleMessage" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        const auth = Auth.requireAuth();
+
+        $('#assignRoleForm').submit(function(e) {
+            e.preventDefault();
+            const email = $('#userEmail').val();
+            const role = $('#userRole').val();
+            
+            $.ajax({
+                url: '/api/assign_role/',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    email: email,
+                    role: role
+                }),
+                // add csrf
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    $('#assignRoleMessage').html(`
+                        <div class="alert alert-success">
+                            Role ${role} assigned successfully to ${email}
+                        </div>
+                    `);
+                    $('#assignRoleForm')[0].reset();
+                },
+                error: function(xhr) {
+                    $('#assignRoleMessage').html(`
+                        <div class="alert alert-danger">
+                            Error: ${xhr.responseJSON?.detail || 'Failed to assign role'}
+                        </div>
+                    `);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

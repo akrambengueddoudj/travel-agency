@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import TravelPackageViewSet, ReservationViewSet
 from rest_framework_simplejwt.views import TokenRefreshView
-from .views import EmailTokenObtainPairView, RegisterView, RegisterWithProfileView, CreateUserProfileView, AssignRoleView, InstantQuotationView, InitiatePaymentView, ShowTransactionView
+from .views import EmailTokenObtainPairView, RegisterView, RegisterWithProfileView, CreateUserProfileView, AssignRoleView, InstantQuotationView, InitiatePaymentView, ShowTransactionView, current_user, UserListView, reservation_stats
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework import permissions
@@ -36,5 +36,8 @@ urlpatterns = [
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     path('swagger.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
+    path('users/me/', current_user, name='current-user'),
+    path('users/', UserListView.as_view(), name='user-list'),
+    path('reservations_stats/', reservation_stats, name='reservation-stats')
     # path('swagger.yaml', schema_view.without_ui(cache_timeout=0, renderer_classes=[openapi.renderers.OpenAPIRenderer]), name='schema-yaml'),
 ]

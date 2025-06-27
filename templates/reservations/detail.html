@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">Reservation Details</h3>
+                        <span class="badge bg-{% if reservation.status == 'confirmed' %}success{% else %}warning{% endif %}">
+                            {% if reservation.status %}
+                            {{reservation.status}}
+                            {% else %}
+                            Pending
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Reservation Information</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item">
+                                    <strong>Reference #:</strong> <span id="reservationId">{{ reservation.id }}</span>
+                                </li>
+                                <li class="list-group-item">
+                                    <strong>Date Booked:</strong> <span id="createdAt">{{ reservation_created_at }}</span>
+                                </li>
+                                <li class="list-group-item">
+                                    <strong>Travelers:</strong> <span id="numberOfPeople">{{ reservation.number_of_people }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5>Customer Details</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item">
+                                    <strong>Name:</strong> <span id="customerName">{{ reservation.customer_name }}</span>
+                                </li>
+                                <li class="list-group-item">
+                                    <strong>Email:</strong> <span id="customerEmail">{{ reservation.customer_email }}</span>
+                                </li>
+                                <li class="list-group-item">
+                                    <strong>Phone:</strong> <span id="customerPhone">{{ reservation.customer_phone|default:"Not provided" }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="mb-4">
+                        <h5>Travel Package</h5>
+                        <div class="card">
+                            <div class="row g-0">
+                                <div class="col-md-4">
+                                    <img src="https://placehold.co/300x200?text=Package+Image" class="img-fluid rounded-start" alt="Package Image" id="packageImage">
+                                </div>
+                                <div class="col-md-8">
+                                    <div class="card-body">
+                                        <h5 class="card-title" id="packageTitle">{{ reservation.travel_package_title }}</h5>
+                                        <p class="card-text" id="packageDescription">{{ reservation.travel_package_description }}</p>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <p class="card-text">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-calendar-alt me-1"></i>
+                                                        <span id="travelDates">{{ reservation.start_date|date:"M j, Y" }} - {{ reservation.end_date|date:"M j, Y" }}</span>
+                                                    </small>
+                                                </p>
+                                            </div>
+                                            <div class="col-6 text-end">
+                                                <p class="card-text">
+                                                    <span class="fw-bold fs-5 text-primary" id="packagePrice">{{ reservation.total_price }} DA</span>
+                                                    <small class="text-muted d-block">total for {{ reservation.number_of_people }} traveler(s)</small>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-between">
+                        {% if reservation.status == 'pending' %}
+                            <button class="btn btn-primary me-md-2" id="payNowBtn">
+                                <i class="fas fa-credit-card me-1"></i> Complete Payment
+                            </button>
+                        {% endif %}
+                        
+                        <button class="btn btn-outline-danger" id="cancelReservationBtn">
+                            <i class="fas fa-times-circle me-1"></i> Cancel Reservation
+                        </button>
+                        
+                        <a href="{% url 'package-detail' reservation.travel_package.id %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-eye me-1"></i> View Package
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-light">
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Need help? Contact our support team at support@smarttravel.com
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Complete Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="paymentForm">
+                    <div class="mb-3">
+                        <label for="cardNumber" class="form-label">Card Number</label>
+                        <input type="text" class="form-control" id="cardNumber" placeholder="4242 4242 4242 4242">
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="expiryDate" class="form-label">Expiry Date</label>
+                            <input type="text" class="form-control" id="expiryDate" placeholder="MM/YY">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cvv" class="form-label">CVV</label>
+                            <input type="text" class="form-control" id="cvv" placeholder="123">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="nameOnCard" class="form-label">Name on Card</label>
+                        <input type="text" class="form-control" id="nameOnCard" value="{{ reservation.customer_name }}">
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <h6>Payment Summary</h6>
+                        <p>Amount to pay: <strong>{{ reservation.total_price }} DA</strong></p>
+                        <p>For package: <strong>{{ reservation.travel_package_title }}</strong></p>
+                    </div>
+                </div>
+                
+                <div id="paymentStatus" style="display: none;">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <h5 id="paymentStatusText">Processing Payment...</h5>
+                        <p class="text-muted">Please wait while we process your payment</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="confirmPaymentBtn">Confirm Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    const auth = Auth.requireAuth();
+    const reservationId = {{ reservation.id }};
+    
+    // Initialize Bootstrap tooltips
+    $('[data-bs-toggle="tooltip"]').tooltip();
+    
+    // Payment button click handler
+    $('#payNowBtn').click(function() {
+        $('#paymentModal').modal('show');
+    });
+    
+    // Confirm payment handler
+    $('#confirmPaymentBtn').click(function() {
+        const amount = {{ reservation.total_price }};
+        
+        $('#paymentForm').hide();
+        $('#paymentStatus').show();
+        $('#paymentStatusText').text('Processing payment...');
+        
+        // Simulate payment processing (replace with actual API call)
+        $.ajax({
+            url: '/api/payment/initiate/',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                amount: amount,
+                reservation_id: reservationId
+            }),
+            success: function(response) {
+                $('#paymentStatusText').text('Payment successful!');
+                
+                // Update reservation status
+                setTimeout(function() {
+                    location.reload(); // Refresh to show updated status
+                }, 1500);
+            },
+            error: function(xhr) {
+                $('#paymentStatus').html(`
+                    <div class="alert alert-danger">
+                        <h5>Payment Failed</h5>
+                        <p>${xhr.responseJSON?.detail || 'Error processing payment'}</p>
+                        <button class="btn btn-secondary" onclick="$('#paymentForm').show(); $('#paymentStatus').hide();">Try Again</button>
+                    </div>
+                `);
+            }
+        });
+    });
+    
+    // Cancel reservation handler
+    $('#cancelReservationBtn').click(function() {
+        if (confirm('Are you sure you want to cancel this reservation?')) {
+            $.ajax({
+                url: `/api/reservations/${reservationId}/`,
+                type: 'DELETE',
+                success: function() {
+                    window.location.href = "{% url 'reservation-list' %}";
+                },
+                error: function(xhr) {
+                    alert('Error canceling reservation: ' + xhr.responseJSON?.detail || 'Unknown error');
+                }
+            });
+        }
+    });
+    
+    // Load additional package details
+    $.get(`/api/packages/{{ reservation.travel_package.id }}/`, function(pkg) {
+        if (pkg.image) {
+            $('#packageImage').attr('src', pkg.image);
+        }
+        $('#packageDescription').text(pkg.description);
+    });
+});
+</script>
+{% endblock %}
